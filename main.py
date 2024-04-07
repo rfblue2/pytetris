@@ -56,7 +56,12 @@ class Game:
             )
         )
         self.font = pygame.font.SysFont(pygame.font.get_default_font(), 24)
+        self.big_font = pygame.font.SysFont(pygame.font.get_default_font(), 64)
         self.clock = pygame.time.Clock()
+        self.state = State.PLAYING
+        self.init_game()
+
+    def init_game(self):
         self.phase = Phase.GENERATION
         self.piece_generator = PieceGenerator()
         self.piece = None
@@ -116,127 +121,148 @@ class Game:
                 case Constants.RIGHT_AUTO_REPEAT_EVENT:
                     self.auto_repeat_right = True
 
-        if keys_down[pygame.K_DOWN]:
-            self.fall_speed = Game.fallspeed_from_level(self.level) // 20
-        if keys_up[pygame.K_DOWN]:
-            self.fall_speed = Game.fallspeed_from_level(self.level)
-        if keys_up[pygame.K_RIGHT]:
-            self.right_auto_timer.stop()
-            self.auto_repeat_right = False
-        if keys_up[pygame.K_LEFT]:
-            self.left_auto_timer.stop()
-            self.auto_repeat_left = False
+        if self.state == State.PLAYING:
+            if keys_down[pygame.K_DOWN]:
+                self.fall_speed = Game.fallspeed_from_level(self.level) // 20
+            if keys_up[pygame.K_DOWN]:
+                self.fall_speed = Game.fallspeed_from_level(self.level)
+            if keys_up[pygame.K_RIGHT]:
+                self.right_auto_timer.stop()
+                self.auto_repeat_right = False
+            if keys_up[pygame.K_LEFT]:
+                self.left_auto_timer.stop()
+                self.auto_repeat_left = False
 
-        match self.phase:
-            case Phase.GENERATION:
-                self.piece = self.piece_generator.next()
-                self.piece.fall(self.blocks)
-                self.phase = Phase.FALLING
-                self.fall_timer.start(self.fall_speed)
-            case Phase.FALLING | Phase.LOCK:
-                if keys_down[pygame.K_LEFT]:
-                    self.piece.move_left(self.blocks)
-                    self.left_auto_timer.start(Constants.AUTO_REPEAT_DELAY_MS)
-
-                    # cancel any pre-existing right auto repeat
-                    self.right_auto_timer.stop()
-                    self.auto_repeat_right = False
-                elif self.auto_repeat_left:
-                    self.piece.move_left(self.blocks)
-
-                if keys_down[pygame.K_RIGHT]:
-                    self.piece.move_right(self.blocks)
-                    self.right_auto_timer.start(Constants.AUTO_REPEAT_DELAY_MS)
-                    # cancel any pre-existing left auto repeat
-                    self.left_auto_timer.stop()
-                    self.auto_repeat_left = False
-                elif self.auto_repeat_right:
-                    self.piece.move_right(self.blocks)
-
-                if keys_down[pygame.K_UP]:
-                    self.piece.rotate_cw(self.blocks)
-
-                if keys_down[pygame.K_DOWN] or keys_up[pygame.K_DOWN]:
-                    self.fall_timer.start(self.fall_speed)
-
-                if keys_down[pygame.K_SPACE]:
-                    while self.piece.fall(self.blocks):
-                        pass
-                    self.fall_timer.stop()
-                    self.phase = Phase.PATTERN
-
-                if falling and not self.piece.fall(self.blocks):
-                    self.fall_timer.stop()
-                    if not self.under_lockdown:
-                        self.lockdown_lowest_y = self.piece.y
-                        self.lockdown_timer.start(Constants.LOCKDOWN_DELAY_MS)
+            match self.phase:
+                case Phase.GENERATION:
+                    self.piece = self.piece_generator.next()
+                    # check top out conditions
+                    if not self.piece.can_fall(self.blocks) or self.piece.is_blocked(
+                        self.blocks
+                    ):
+                        self.state = State.GAME_OVER
                     else:
-                        self.lockdown_timer.resume()
-                    self.phase = Phase.LOCK
-
-                if self.phase == Phase.LOCK:
-                    # Movement or rotation can cause piece to continue falling
-                    # if piece can fall, pause timer until piece lands on a surface
-                    # if piece falls below lowest previously hit y coordinate, reset lockdown
-                    if self.piece.can_fall(self.blocks):
-                        if self.piece.y - 1 < self.lockdown_lowest_y:
-                            self.under_lockdown = False
-                            self.lockdown_timer.stop()
-                        else:
-                            self.lockdown_timer.pause()
-                        self.fall_timer.start(self.fall_speed)
+                        self.piece.fall(self.blocks)
                         self.phase = Phase.FALLING
+                        self.fall_timer.start(self.fall_speed)
+                case Phase.FALLING | Phase.LOCK:
+                    if keys_down[pygame.K_LEFT]:
+                        self.piece.move_left(self.blocks)
+                        self.left_auto_timer.start(Constants.AUTO_REPEAT_DELAY_MS)
 
-                    if locked:
-                        self.under_lockdown = False
+                        # cancel any pre-existing right auto repeat
+                        self.right_auto_timer.stop()
+                        self.auto_repeat_right = False
+                    elif self.auto_repeat_left:
+                        self.piece.move_left(self.blocks)
+
+                    if keys_down[pygame.K_RIGHT]:
+                        self.piece.move_right(self.blocks)
+                        self.right_auto_timer.start(Constants.AUTO_REPEAT_DELAY_MS)
+                        # cancel any pre-existing left auto repeat
+                        self.left_auto_timer.stop()
+                        self.auto_repeat_left = False
+                    elif self.auto_repeat_right:
+                        self.piece.move_right(self.blocks)
+
+                    if keys_down[pygame.K_UP]:
+                        self.piece.rotate_cw(self.blocks)
+
+                    if keys_down[pygame.K_DOWN] or keys_up[pygame.K_DOWN]:
+                        self.fall_timer.start(self.fall_speed)
+
+                    if keys_down[pygame.K_SPACE]:
+                        while self.piece.fall(self.blocks):
+                            pass
+                        self.fall_timer.stop()
                         self.phase = Phase.PATTERN
-            case Phase.PATTERN:
-                self.blocks.add(*self.piece.blocks.sprites())
-                self.piece.blocks.empty()
-                for row in range(Constants.BOARD_HEIGHT):
-                    block_row = [block for block in self.blocks if block.y == row]
-                    if len(block_row) == Constants.BOARD_WIDTH:
-                        self.hit_list.extend(block_row)
-                self.phase = Phase.ELIMINATE
-            case Phase.ELIMINATE:
-                eliminated_rows = set(block.y for block in self.hit_list)
-                for block in self.hit_list:
-                    block.kill()
-                self.hit_list = []
-                for eliminated_row in sorted(eliminated_rows, reverse=True):
-                    for block in self.blocks:
-                        if block.y > eliminated_row:
-                            block.fall()
 
-                if len(eliminated_rows) == 1:
-                    self.scoring_action = ScoringActions.SINGLE
-                elif len(eliminated_rows) == 2:
-                    self.scoring_action = ScoringActions.DOUBLE
-                elif len(eliminated_rows) == 3:
-                    self.scoring_action = ScoringActions.TRIPLE
-                elif len(eliminated_rows) == 4:
-                    self.scoring_action = ScoringActions.TETRIS
+                    if falling and not self.piece.fall(self.blocks):
+                        self.fall_timer.stop()
+                        if not self.under_lockdown:
+                            self.lockdown_lowest_y = self.piece.y
+                            self.lockdown_timer.start(Constants.LOCKDOWN_DELAY_MS)
+                        else:
+                            self.lockdown_timer.resume()
+                        self.phase = Phase.LOCK
 
-                self.lines += len(eliminated_rows)
+                    if self.phase == Phase.LOCK:
+                        # Movement or rotation can cause piece to continue falling
+                        # if piece can fall, pause timer until piece lands on a surface
+                        # if piece falls below lowest previously hit y coordinate, reset lockdown
+                        if self.piece.can_fall(self.blocks):
+                            if self.piece.y - 1 < self.lockdown_lowest_y:
+                                self.under_lockdown = False
+                                self.lockdown_timer.stop()
+                            else:
+                                self.lockdown_timer.pause()
+                            self.fall_timer.start(self.fall_speed)
+                            self.phase = Phase.FALLING
 
-                self.phase = Phase.COMPLETION
-            case Phase.COMPLETION:
-                match self.scoring_action:
-                    case ScoringActions.SINGLE:
-                        self.score += 100
-                    case ScoringActions.DOUBLE:
-                        self.score += 300
-                    case ScoringActions.TRIPLE:
-                        self.score += 500
-                    case ScoringActions.TETRIS:
-                        self.score += 800
+                        if locked:
+                            self.under_lockdown = False
+                            self.phase = Phase.PATTERN
+                case Phase.PATTERN:
+                    self.blocks.add(*self.piece.blocks.sprites())
+                    self.piece.blocks.empty()
+                    for row in range(Constants.BOARD_HEIGHT):
+                        block_row = [block for block in self.blocks if block.y == row]
+                        if len(block_row) == Constants.BOARD_WIDTH:
+                            self.hit_list.extend(block_row)
+                    self.phase = Phase.ELIMINATE
+                case Phase.ELIMINATE:
+                    eliminated_rows = set(block.y for block in self.hit_list)
+                    for block in self.hit_list:
+                        block.kill()
+                    self.hit_list = []
+                    for eliminated_row in sorted(eliminated_rows, reverse=True):
+                        for block in self.blocks:
+                            if block.y > eliminated_row:
+                                block.fall()
 
-                if self.level < Constants.MAX_LEVEL and self.lines >= self.level * 10:
-                    self.level += 1
-                    self.fall_speed = Game.fallspeed_from_level(self.level)
+                    if len(eliminated_rows) == 1:
+                        self.scoring_action = ScoringActions.SINGLE
+                    elif len(eliminated_rows) == 2:
+                        self.scoring_action = ScoringActions.DOUBLE
+                    elif len(eliminated_rows) == 3:
+                        self.scoring_action = ScoringActions.TRIPLE
+                    elif len(eliminated_rows) == 4:
+                        self.scoring_action = ScoringActions.TETRIS
 
-                self.scoring_action = None
-                self.phase = Phase.GENERATION
+                    self.lines += len(eliminated_rows)
+
+                    self.phase = Phase.COMPLETION
+                case Phase.COMPLETION:
+                    match self.scoring_action:
+                        case ScoringActions.SINGLE:
+                            self.score += 100
+                        case ScoringActions.DOUBLE:
+                            self.score += 300
+                        case ScoringActions.TRIPLE:
+                            self.score += 500
+                        case ScoringActions.TETRIS:
+                            self.score += 800
+
+                    if (
+                        self.level < Constants.MAX_LEVEL
+                        and self.lines >= self.level * 10
+                    ):
+                        self.level += 1
+                        self.fall_speed = Game.fallspeed_from_level(self.level)
+
+                    self.scoring_action = None
+                    self.phase = Phase.GENERATION
+
+        elif self.state == State.GAME_OVER:
+            self.fall_timer.stop()
+            self.lockdown_timer.stop()
+            self.left_auto_timer.stop()
+            self.right_auto_timer.stop()
+
+            if keys_down[pygame.K_RETURN]:
+                self.init_game()
+                self.state = State.PLAYING
+                return
 
         self.screen.fill(pygame.Color("black"))
         Game.draw_board(self.board)
@@ -250,6 +276,9 @@ class Game:
         self.screen.blit(level, (10, 10))
         self.screen.blit(score, (10, 30))
         self.screen.blit(lines, (10, 50))
+
+        if self.state == State.GAME_OVER:
+            Game.draw_game_over_overlay(self.screen, self.big_font, self.font)
 
         self.clock.tick(60)
         pygame.display.flip()
@@ -280,6 +309,34 @@ class Game:
                     ),
                     1,
                 )
+
+    @staticmethod
+    def draw_game_over_overlay(screen, big_font, small_font):
+        game_over_overlay = pygame.surface.Surface(
+            (Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT),
+            flags=pygame.SRCALPHA,
+        )
+        game_over_overlay.fill((0, 0, 0, 128))
+        game_over = big_font.render("Game Over", True, (255, 255, 255))
+        enter_to_continue = small_font.render(
+            "Press Enter to continue", True, (255, 255, 255)
+        )
+        game_over_overlay.blit(
+            game_over,
+            game_over.get_rect(
+                center=(Constants.SCREEN_WIDTH // 2, Constants.SCREEN_HEIGHT // 2)
+            ),
+        )
+        game_over_overlay.blit(
+            enter_to_continue,
+            enter_to_continue.get_rect(
+                center=(
+                    Constants.SCREEN_WIDTH // 2,
+                    Constants.SCREEN_HEIGHT // 2 + 100,
+                )
+            ),
+        )
+        screen.blit(game_over_overlay, (0, 0))
 
     @staticmethod
     def fallspeed_from_level(level):

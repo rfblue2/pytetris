@@ -47,12 +47,15 @@ class Piece:
             [block.move_left() for block in self.blocks]
             self.x -= 1
 
+    def is_blocked(self, blocks):
+        return not all(block.not_collided(blocks) for block in self.blocks)
+
     def rotate_cw(self, blocks):
         new_orientation = Orientation.rotate_cw(self.orientation)
         offsets = self.type.CW_ROTATION_OFFSETS[self.orientation]
 
         for offset in offsets:
-            new_blocks = self.generate_rotated_blocks(
+            new_blocks = self.__generate_rotated_blocks(
                 offset, self.type.mask(new_orientation)
             )
             if all(block.not_collided(blocks) for block in new_blocks):
@@ -63,7 +66,7 @@ class Piece:
                 self.y += offset[1]
                 return
 
-    def generate_rotated_blocks(self, offset, mask):
+    def __generate_rotated_blocks(self, offset, mask):
         return [
             Block(
                 x + (self.x - 1) + offset[0],
