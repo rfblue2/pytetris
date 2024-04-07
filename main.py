@@ -26,6 +26,7 @@ class Constants:
 class State(Enum):
     PLAYING = 1
     GAME_OVER = 2
+    PAUSED = 3
 
 
 class Phase(Enum):
@@ -114,6 +115,7 @@ class Game:
                     keys_up[event.key] = True
                 case Constants.FALL_EVENT:
                     falling = True
+                    self.fall_timer.notify()
                 case Constants.LOCKDOWN_EVENT:
                     locked = True
                 case Constants.LEFT_AUTO_REPEAT_EVENT:
@@ -133,6 +135,14 @@ class Game:
                 self.left_auto_timer.stop()
                 self.auto_repeat_left = False
 
+            if keys_down[pygame.K_p]:
+                self.fall_timer.pause()
+                self.lockdown_timer.pause()
+                self.left_auto_timer.pause()
+                self.right_auto_timer.pause()
+                self.state = State.PAUSED
+                return
+
             match self.phase:
                 case Phase.GENERATION:
                     self.piece = self.piece_generator.next()
@@ -148,7 +158,7 @@ class Game:
                 case Phase.FALLING | Phase.LOCK:
                     if keys_down[pygame.K_LEFT]:
                         self.piece.move_left(self.blocks)
-                        self.left_auto_timer.start(Constants.AUTO_REPEAT_DELAY_MS)
+                        self.left_auto_timer.start(Constants.AUTO_REPEAT_DELAY_MS, 1)
 
                         # cancel any pre-existing right auto repeat
                         self.right_auto_timer.stop()
@@ -158,7 +168,7 @@ class Game:
 
                     if keys_down[pygame.K_RIGHT]:
                         self.piece.move_right(self.blocks)
-                        self.right_auto_timer.start(Constants.AUTO_REPEAT_DELAY_MS)
+                        self.right_auto_timer.start(Constants.AUTO_REPEAT_DELAY_MS, 1)
                         # cancel any pre-existing left auto repeat
                         self.left_auto_timer.stop()
                         self.auto_repeat_left = False
@@ -181,7 +191,7 @@ class Game:
                         self.fall_timer.stop()
                         if not self.under_lockdown:
                             self.lockdown_lowest_y = self.piece.y
-                            self.lockdown_timer.start(Constants.LOCKDOWN_DELAY_MS)
+                            self.lockdown_timer.start(Constants.LOCKDOWN_DELAY_MS, 1)
                         else:
                             self.lockdown_timer.resume()
                         self.phase = Phase.LOCK
@@ -253,6 +263,14 @@ class Game:
                     self.scoring_action = None
                     self.phase = Phase.GENERATION
 
+        elif self.state == State.PAUSED:
+            if keys_down[pygame.K_RETURN] or keys_down[pygame.K_p]:
+                self.fall_timer.resume()
+                self.lockdown_timer.resume()
+                self.left_auto_timer.resume()
+                self.right_auto_timer.resume()
+                self.state = State.PLAYING
+
         elif self.state == State.GAME_OVER:
             self.fall_timer.stop()
             self.lockdown_timer.stop()
@@ -279,6 +297,8 @@ class Game:
 
         if self.state == State.GAME_OVER:
             Game.draw_game_over_overlay(self.screen, self.big_font, self.font)
+        elif self.state == State.PAUSED:
+            Game.draw_pause_overlay(self.screen, self.big_font)
 
         self.clock.tick(60)
         pygame.display.flip()
@@ -309,6 +329,22 @@ class Game:
                     ),
                     1,
                 )
+
+    @staticmethod
+    def draw_pause_overlay(screen, big_font):
+        pause_overlay = pygame.surface.Surface(
+            (Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT),
+            flags=pygame.SRCALPHA,
+        )
+        pause_overlay.fill((0, 0, 0, 128))
+        pause = big_font.render("Paused (P to resume)", True, (255, 255, 255))
+        pause_overlay.blit(
+            pause,
+            pause.get_rect(
+                center=(Constants.SCREEN_WIDTH // 2, Constants.SCREEN_HEIGHT // 2)
+            ),
+        )
+        screen.blit(pause_overlay, (0, 0))
 
     @staticmethod
     def draw_game_over_overlay(screen, big_font, small_font):

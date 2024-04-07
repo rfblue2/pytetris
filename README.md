@@ -23,7 +23,6 @@ pipenv run python main.py
 - Next Queue
 - Ghost Piece
 - CCW Rotation
-- Pause
 - Extended Lockdown
 - Back-to-Back, hard/soft drop scoring
 - T-spins
