@@ -26,8 +26,11 @@ class Piece:
             ]
         )
 
+    def can_fall(self, blocks):
+        return all(block.can_fall(blocks) for block in self.blocks)
+
     def fall(self, blocks):
-        if all(block.can_fall(blocks) for block in self.blocks):
+        if self.can_fall(blocks):
             [block.fall() for block in self.blocks]
             self.y -= 1
             return True

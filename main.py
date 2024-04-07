@@ -13,6 +13,7 @@ class Constants:
 
     FALL_SPEED_MS = 1000
     AUTO_REPEAT_DELAY_MS = 300
+    LOCKDOWN_DELAY_MS = 500
 
     FALL_EVENT = pygame.USEREVENT + 1
     LOCKDOWN_EVENT = pygame.USEREVENT + 2
@@ -45,6 +46,13 @@ class Game:
         self.fall_speed = Constants.FALL_SPEED_MS
         self.hit_list = []
 
+        # lockdown state:
+        # TODO: Implement extended placement (15 move limit before lockdown)
+        # lowest y coordinate hit by piece under lock down
+        self.lockdown_lowest_y = 0
+        self.under_lockdown = False
+        self.lockdown_start_time = 0
+
     def run(self):
         while self.running:
             self.loop()
@@ -52,6 +60,7 @@ class Game:
 
     def loop(self):
         falling = False
+        locked = False
         keys_down = defaultdict(bool)
         keys_up = defaultdict(bool)
         for event in pygame.event.get():
@@ -66,6 +75,8 @@ class Game:
                     keys_up[event.key] = True
                 case Constants.FALL_EVENT:
                     falling = True
+                case Constants.LOCKDOWN_EVENT:
+                    locked = True
                 case Constants.LEFT_AUTO_REPEAT_EVENT:
                     self.auto_repeat_left = True
                 case Constants.RIGHT_AUTO_REPEAT_EVENT:
@@ -78,10 +89,10 @@ class Game:
         if keys_up[pygame.K_DOWN]:
             self.fall_speed = Constants.FALL_SPEED_MS
         if keys_up[pygame.K_RIGHT]:
-            pygame.time.set_timer(Constants.RIGHT_AUTO_REPEAT_EVENT, 0)
+            Game.stop_timer(Constants.RIGHT_AUTO_REPEAT_EVENT)
             self.auto_repeat_right = False
         if keys_up[pygame.K_LEFT]:
-            pygame.time.set_timer(Constants.LEFT_AUTO_REPEAT_EVENT, 0)
+            Game.stop_timer(Constants.LEFT_AUTO_REPEAT_EVENT)
             self.auto_repeat_left = False
 
         match self.phase:
@@ -90,7 +101,7 @@ class Game:
                 self.piece.fall(self.blocks)
                 self.phase = Phase.FALLING
                 pygame.time.set_timer(Constants.FALL_EVENT, self.fall_speed)
-            case Phase.FALLING:
+            case Phase.FALLING | Phase.LOCK:
                 if keys_down[pygame.K_LEFT]:
                     self.piece.move_left(self.blocks)
                     pygame.time.set_timer(
@@ -98,7 +109,7 @@ class Game:
                     )
 
                     # cancel any pre-existing right auto repeat
-                    pygame.time.set_timer(Constants.RIGHT_AUTO_REPEAT_EVENT, 0)
+                    Game.stop_timer(Constants.RIGHT_AUTO_REPEAT_EVENT)
                     self.auto_repeat_right = False
                 elif self.auto_repeat_left:
                     self.piece.move_left(self.blocks)
@@ -110,7 +121,7 @@ class Game:
                         Constants.AUTO_REPEAT_DELAY_MS,
                     )
                     # cancel any pre-existing left auto repeat
-                    pygame.time.set_timer(Constants.LEFT_AUTO_REPEAT_EVENT, 0)
+                    Game.stop_timer(Constants.LEFT_AUTO_REPEAT_EVENT)
                     self.auto_repeat_left = False
                 elif self.auto_repeat_right:
                     self.piece.move_right(self.blocks)
@@ -125,16 +136,38 @@ class Game:
                     while self.piece.fall(self.blocks):
                         pass
                     pygame.time.set_timer(Constants.FALL_EVENT, 0)
-                    self.phase = Phase.LOCK
+                    self.phase = Phase.PATTERN
 
                 if falling and not self.piece.fall(self.blocks):
-                    pygame.time.set_timer(Constants.FALL_EVENT, 0)  # stop the timer
+                    Game.stop_timer(Constants.FALL_EVENT)
+                    if not self.under_lockdown:
+                        self.lockdown_lowest_y = self.piece.y
+                        self.lockdown_start_time = pygame.time.get_ticks()
+                    pygame.time.set_timer(
+                        Constants.LOCKDOWN_EVENT,
+                        self.lockdown_start_time
+                        + Constants.LOCKDOWN_DELAY_MS
+                        - pygame.time.get_ticks(),
+                    )
                     self.phase = Phase.LOCK
-            case Phase.LOCK:
+
+                if self.phase == Phase.LOCK:
+                    # Movement or rotation can cause piece to continue falling
+                    # if piece can fall, pause timer until piece lands on a surface
+                    # if piece falls below lowest previously hit y coordinate, reset lockdown
+                    if self.piece.can_fall(self.blocks):
+                        if self.piece.y - 1 < self.lockdown_lowest_y:
+                            self.under_lockdown = False
+                        Game.stop_timer(Constants.LOCKDOWN_EVENT)
+                        pygame.time.set_timer(Constants.FALL_EVENT, self.fall_speed)
+                        self.phase = Phase.FALLING
+
+                    if locked:
+                        self.under_lockdown = False
+                        self.phase = Phase.PATTERN
+            case Phase.PATTERN:
                 self.blocks.add(*self.piece.blocks.sprites())
                 self.piece.blocks.empty()
-                self.phase = Phase.PATTERN
-            case Phase.PATTERN:
                 for row in range(Constants.BOARD_HEIGHT):
                     block_row = [block for block in self.blocks if block.y == row]
                     if len(block_row) == Constants.BOARD_WIDTH:
@@ -187,6 +220,10 @@ class Game:
                     ),
                     1,
                 )
+
+    @staticmethod
+    def stop_timer(event_id):
+        pygame.time.set_timer(event_id, 0)
 
 
 if __name__ == "__main__":
