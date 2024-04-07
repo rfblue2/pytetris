@@ -22,6 +22,15 @@ class Orientation(Enum):
 
 
 class PieceType(ABC):
+
+    @property
+    @abstractmethod
+    def CW_ROTATION_OFFSETS(cls):
+        """
+        Returns offsets of next orientation position after rotation
+        """
+        pass
+
     @abstractmethod
     def color(self):
         pass
@@ -30,26 +39,30 @@ class PieceType(ABC):
     def mask(self, orientation):
         pass
 
-    @abstractmethod
-    def rotate_cw(self, orientation, point):
-        """
-        Returns offsets of next orientation position after rotation
-        """
-        pass
-
 
 class OPiece(PieceType):
+    CW_ROTATION_OFFSETS = {
+        Orientation.NORTH: [(0, 0)],
+        Orientation.EAST: [(0, 0)],
+        Orientation.SOUTH: [(0, 0)],
+        Orientation.WEST: [(0, 0)],
+    }
+
     def color(self):
         return (255, 255, 0)
 
     def mask(self, orientation):
         return [[0, 1, 1], [0, 1, 1], [0, 0, 0]]
 
-    def rotate_cw(self, orientation, point):
-        return (0, 0)
-
 
 class TPiece(PieceType):
+    CW_ROTATION_OFFSETS = {
+        Orientation.NORTH: [(0, 0), (-1, 0), (-1, 1), (0, 0), (-1, -2)],
+        Orientation.EAST: [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+        Orientation.SOUTH: [(0, 0), (-1, 0), (0, 0), (0, -2), (1, -2)],
+        Orientation.WEST: [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
+    }
+
     def color(self):
         return (255, 0, 255)
 
@@ -66,13 +79,15 @@ class TPiece(PieceType):
             case _:
                 raise ValueError("Invalid orientation")
 
-    def rotate_cw(self, orientation, point):
-        if point == 1:
-            return (0, 0)
-        # TODO other points
-
 
 class IPiece(PieceType):
+    CW_ROTATION_OFFSETS = {
+        Orientation.NORTH: [(0, 0), (-2, 0), (1, 0), (-2, -1), (1, 2)],
+        Orientation.EAST: [(0, 0), (-1, 0), (2, 0), (-1, 2), (2, -1)],
+        Orientation.SOUTH: [(0, 0), (2, 0), (-1, 0), (2, 1), (-1, -2)],
+        Orientation.WEST: [(0, 0), (1, 0), (-2, 0), (1, -2), (-2, 1)],
+    }
+
     def color(self):
         return (0, 255, 255)
 
@@ -87,13 +102,15 @@ class IPiece(PieceType):
             case Orientation.WEST:
                 return [[0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0], [0, 1, 0, 0]]
 
-    def rotate_cw(self, orientation, point):
-        if point == 1:
-            return (0, 0)
-        # TODO other points
-
 
 class LPiece(PieceType):
+    CW_ROTATION_OFFSETS = {
+        Orientation.NORTH: [(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+        Orientation.EAST: [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+        Orientation.SOUTH: [(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
+        Orientation.WEST: [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
+    }
+
     def color(self):
         return (255, 165, 0)
 
@@ -108,13 +125,15 @@ class LPiece(PieceType):
             case Orientation.WEST:
                 return [[1, 1, 0], [0, 1, 0], [0, 1, 0]]
 
-    def rotate_cw(self, orientation, point):
-        if point == 1:
-            return (0, 0)
-        # TODO other points
-
 
 class JPiece(PieceType):
+    CW_ROTATION_OFFSETS = {
+        Orientation.NORTH: [(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+        Orientation.EAST: [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+        Orientation.SOUTH: [(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
+        Orientation.WEST: [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
+    }
+
     def color(self):
         return (0, 0, 255)
 
@@ -129,13 +148,15 @@ class JPiece(PieceType):
             case Orientation.WEST:
                 return [[0, 1, 0], [0, 1, 0], [1, 1, 0]]
 
-    def rotate_cw(self, orientation, point):
-        if point == 1:
-            return (0, 0)
-        # TODO other points
-
 
 class SPiece(PieceType):
+    CW_ROTATION_OFFSETS = {
+        Orientation.NORTH: [(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+        Orientation.EAST: [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+        Orientation.SOUTH: [(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
+        Orientation.WEST: [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
+    }
+
     def color(self):
         return (0, 255, 0)
 
@@ -150,13 +171,15 @@ class SPiece(PieceType):
             case Orientation.WEST:
                 return [[1, 0, 0], [1, 1, 0], [0, 1, 0]]
 
-    def rotate_cw(self, orientation, point):
-        if point == 1:
-            return (0, 0)
-        # TODO other points
-
 
 class ZPiece(PieceType):
+    CW_ROTATION_OFFSETS = {
+        Orientation.NORTH: [(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+        Orientation.EAST: [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+        Orientation.SOUTH: [(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
+        Orientation.WEST: [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
+    }
+
     def color(self):
         return (255, 0, 0)
 
@@ -170,8 +193,3 @@ class ZPiece(PieceType):
                 return [[0, 0, 0], [1, 1, 0], [0, 1, 1]]
             case Orientation.WEST:
                 return [[0, 1, 0], [1, 1, 0], [1, 0, 0]]
-
-    def rotate_cw(self, orientation, point):
-        if point == 1:
-            return (0, 0)
-        # TODO other points
