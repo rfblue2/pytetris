@@ -1,9 +1,8 @@
 import pygame
-import random
 from collections import defaultdict
 from enum import Enum
-from piece import Piece, Block
-from piece_type import OPiece, TPiece, IPiece
+from piece import Block
+from piece_generator import PieceGenerator
 
 
 class Constants:
@@ -30,22 +29,6 @@ class Phase(Enum):
     COMPLETION = 6
 
 
-class PieceGenerator:
-    PIECES = [OPiece(), TPiece(), IPiece()]
-
-    def __init__(self):
-        self.shuffle()
-
-    def shuffle(self):
-        self.bag = PieceGenerator.PIECES.copy()
-        random.shuffle(self.bag)
-
-    def next(self):
-        if not self.bag:
-            self.shuffle()
-        return Piece(self.bag.pop())
-
-
 class Game:
     def __init__(self):
         self.screen = pygame.display.set_mode(
@@ -60,6 +43,7 @@ class Game:
         self.auto_repeat_left = False
         self.auto_repeat_right = False
         self.fall_speed = Constants.FALL_SPEED_MS
+        self.hit_list = []
 
     def run(self):
         while self.running:
@@ -102,7 +86,6 @@ class Game:
 
         match self.phase:
             case Phase.GENERATION:
-                print("Generating")
                 self.piece = self.piece_generator.next()
                 self.piece.fall(self.blocks)
                 self.phase = Phase.FALLING
@@ -148,15 +131,25 @@ class Game:
                     pygame.time.set_timer(Constants.FALL_EVENT, 0)  # stop the timer
                     self.phase = Phase.LOCK
             case Phase.LOCK:
-                print("Locking")
                 self.blocks.add(*self.piece.blocks.sprites())
                 self.piece.blocks.empty()
                 self.phase = Phase.PATTERN
             case Phase.PATTERN:
-                # TODO
+                for row in range(Constants.BOARD_HEIGHT):
+                    block_row = [block for block in self.blocks if block.y == row]
+                    if len(block_row) == Constants.BOARD_WIDTH:
+                        self.hit_list.extend(block_row)
                 self.phase = Phase.ELIMINATE
             case Phase.ELIMINATE:
-                # TODO
+                eliminated_rows = set(block.y for block in self.hit_list)
+                for block in self.hit_list:
+                    block.kill()
+                self.hit_list = []
+                for eliminated_row in sorted(eliminated_rows, reverse=True):
+                    for block in self.blocks:
+                        if block.y > eliminated_row:
+                            block.fall()
+
                 self.phase = Phase.COMPLETION
             case Phase.COMPLETION:
                 # TODO
