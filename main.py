@@ -8,10 +8,11 @@ from piece_generator import PieceGenerator
 class Constants:
     BOARD_WIDTH = 10
     BOARD_HEIGHT = 20
-    SCREEN_WIDTH = BOARD_WIDTH * Block.BLOCK_WIDTH + 200
+    SCREEN_WIDTH = BOARD_WIDTH * Block.BLOCK_WIDTH + 400
     SCREEN_HEIGHT = BOARD_HEIGHT * Block.BLOCK_HEIGHT
 
-    FALL_SPEED_MS = 1000
+    MAX_LEVEL = 15
+
     AUTO_REPEAT_DELAY_MS = 300
     LOCKDOWN_DELAY_MS = 500
 
@@ -30,11 +31,25 @@ class Phase(Enum):
     COMPLETION = 6
 
 
+class ScoringActions(Enum):
+    SINGLE = 1
+    DOUBLE = 2
+    TRIPLE = 3
+    TETRIS = 4
+
+
 class Game:
     def __init__(self):
         self.screen = pygame.display.set_mode(
             (Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT)
         )
+        self.board = pygame.Surface(
+            (
+                Constants.BOARD_WIDTH * Block.BLOCK_WIDTH,
+                Constants.BOARD_HEIGHT * Block.BLOCK_HEIGHT,
+            )
+        )
+        self.font = pygame.font.SysFont(pygame.font.get_default_font(), 24)
         self.clock = pygame.time.Clock()
         self.phase = Phase.GENERATION
         self.piece_generator = PieceGenerator()
@@ -43,7 +58,14 @@ class Game:
         self.running = True
         self.auto_repeat_left = False
         self.auto_repeat_right = False
-        self.fall_speed = Constants.FALL_SPEED_MS
+
+        # scoring, levels, statistics
+        self.level = 1
+        self.score = 0
+        self.lines = 0
+        self.scoring_action = None
+
+        self.fall_speed = Game.fallspeed_from_level(self.level)
         self.hit_list = []
 
         # lockdown state:
@@ -82,12 +104,10 @@ class Game:
                 case Constants.RIGHT_AUTO_REPEAT_EVENT:
                     self.auto_repeat_right = True
 
-        Game.draw_board(self.screen)
-
         if keys_down[pygame.K_DOWN]:
-            self.fall_speed = Constants.FALL_SPEED_MS // 20
+            self.fall_speed = Game.fallspeed_from_level(self.level) // 20
         if keys_up[pygame.K_DOWN]:
-            self.fall_speed = Constants.FALL_SPEED_MS
+            self.fall_speed = Game.fallspeed_from_level(self.level)
         if keys_up[pygame.K_RIGHT]:
             Game.stop_timer(Constants.RIGHT_AUTO_REPEAT_EVENT)
             self.auto_repeat_right = False
@@ -183,24 +203,59 @@ class Game:
                         if block.y > eliminated_row:
                             block.fall()
 
+                if len(eliminated_rows) == 1:
+                    self.scoring_action = ScoringActions.SINGLE
+                elif len(eliminated_rows) == 2:
+                    self.scoring_action = ScoringActions.DOUBLE
+                elif len(eliminated_rows) == 3:
+                    self.scoring_action = ScoringActions.TRIPLE
+                elif len(eliminated_rows) == 4:
+                    self.scoring_action = ScoringActions.TETRIS
+
+                self.lines += len(eliminated_rows)
+
                 self.phase = Phase.COMPLETION
             case Phase.COMPLETION:
-                # TODO
+                match self.scoring_action:
+                    case ScoringActions.SINGLE:
+                        self.score += 100
+                    case ScoringActions.DOUBLE:
+                        self.score += 300
+                    case ScoringActions.TRIPLE:
+                        self.score += 500
+                    case ScoringActions.TETRIS:
+                        self.score += 800
+
+                if self.level < Constants.MAX_LEVEL and self.lines >= self.level * 10:
+                    self.level += 1
+                    self.fall_speed = Game.fallspeed_from_level(self.level)
+
+                self.scoring_action = None
                 self.phase = Phase.GENERATION
 
-        self.piece.draw(self.screen)
-        [block.draw(self.screen) for block in self.blocks.sprites()]
+        self.screen.fill(pygame.Color("black"))
+        Game.draw_board(self.board)
+        self.piece.draw(self.board)
+        [block.draw(self.board) for block in self.blocks.sprites()]
+
+        self.screen.blit(self.board, (200, 0))
+        level = self.font.render(f"Level: {self.level}", True, (255, 255, 255))
+        score = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
+        lines = self.font.render(f"Lines: {self.lines}", True, (255, 255, 255))
+        self.screen.blit(level, (10, 10))
+        self.screen.blit(score, (10, 30))
+        self.screen.blit(lines, (10, 50))
 
         self.clock.tick(60)
         pygame.display.flip()
 
     @staticmethod
-    def draw_board(screen):
-        screen.fill((0, 0, 0))
+    def draw_board(board):
+        board.fill((0, 0, 0))
 
         # draw frame
         pygame.draw.rect(
-            screen,
+            board,
             (255, 255, 255),
             (0, 0, Constants.BOARD_WIDTH * Block.BLOCK_WIDTH, Constants.SCREEN_HEIGHT),
             1,
@@ -210,7 +265,7 @@ class Game:
         for x in range(0, Constants.BOARD_WIDTH):
             for y in range(0, Constants.BOARD_HEIGHT):
                 pygame.draw.rect(
-                    screen,
+                    board,
                     (100, 100, 100),
                     (
                         x * Block.BLOCK_WIDTH,
@@ -224,6 +279,10 @@ class Game:
     @staticmethod
     def stop_timer(event_id):
         pygame.time.set_timer(event_id, 0)
+
+    @staticmethod
+    def fallspeed_from_level(level):
+        return int((0.8 - (level - 1) * 0.007) ** (level - 1) * 1000)
 
 
 if __name__ == "__main__":
