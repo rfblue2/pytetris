@@ -133,3 +133,45 @@ class JPiece(PieceType):
         if point == 1:
             return (0, 0)
         # TODO other points
+
+
+class SPiece(PieceType):
+    def color(self):
+        return (0, 255, 0)
+
+    def mask(self, orientation):
+        match orientation:
+            case Orientation.NORTH:
+                return [[0, 1, 1], [1, 1, 0], [0, 0, 0]]
+            case Orientation.EAST:
+                return [[0, 1, 0], [0, 1, 1], [0, 0, 1]]
+            case Orientation.SOUTH:
+                return [[0, 0, 0], [0, 1, 1], [1, 1, 0]]
+            case Orientation.WEST:
+                return [[1, 0, 0], [1, 1, 0], [0, 1, 0]]
+
+    def rotate_cw(self, orientation, point):
+        if point == 1:
+            return (0, 0)
+        # TODO other points
+
+
+class ZPiece(PieceType):
+    def color(self):
+        return (255, 0, 0)
+
+    def mask(self, orientation):
+        match orientation:
+            case Orientation.NORTH:
+                return [[1, 1, 0], [0, 1, 1], [0, 0, 0]]
+            case Orientation.EAST:
+                return [[0, 0, 1], [0, 1, 1], [0, 1, 0]]
+            case Orientation.SOUTH:
+                return [[0, 0, 0], [1, 1, 0], [0, 1, 1]]
+            case Orientation.WEST:
+                return [[0, 1, 0], [1, 1, 0], [1, 0, 0]]
+
+    def rotate_cw(self, orientation, point):
+        if point == 1:
+            return (0, 0)
+        # TODO other points
