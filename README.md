@@ -20,7 +20,6 @@ pipenv run python main.py
 
 ### TODO List:
 - Next Queue
-- Ghost Piece
 - CCW Rotation
 - Extended Lockdown
 - Back-to-Back, hard/soft drop scoring

@@ -1,5 +1,5 @@
 import pygame
-from constants import Constants
+from block import Block
 from piece_type import PieceType, Orientation
 
 
@@ -7,7 +7,14 @@ class Piece:
     START_X = 5
     START_Y = 21
 
-    def __init__(self, type: PieceType, x=START_X, y=START_Y):
+    def __init__(
+        self,
+        type: PieceType,
+        x=START_X,
+        y=START_Y,
+        orientation=Orientation.NORTH,
+        style=Block.Style.FILL,
+    ):
         """
         x,y block coordinates based on center of top left 3x3 square within 10x20 board
         Initial generation is at (5,21)
@@ -15,12 +22,13 @@ class Piece:
         self.x = x
         self.y = y
         self.type = type
+        self.style = style
         self.blocks = pygame.sprite.Group()
-        self.orientation = Orientation.NORTH
+        self.orientation = orientation
         pattern = type.mask(self.orientation)
         self.blocks.add(
             *[
-                Block(x + (self.x - 1), -y + (self.y + 1), type.color())
+                Block(x + (self.x - 1), -y + (self.y + 1), type.color(), style)
                 for y, row in enumerate(pattern)
                 for x, value in enumerate(row)
                 if value
@@ -73,6 +81,7 @@ class Piece:
                 x + (self.x - 1) + offset[0],
                 -y + (self.y + 1) + offset[1],
                 self.type.color(),
+                self.style,
             )
             for y, row in enumerate(mask)
             for x, value in enumerate(row)
@@ -81,58 +90,3 @@ class Piece:
 
     def draw(self, screen):
         [block.draw(screen) for block in self.blocks]
-
-
-class Block(pygame.sprite.Sprite):
-
-    def __init__(self, x, y, color):
-        super(Block, self).__init__()
-        self.x = x
-        self.y = y
-        self.surf = pygame.Surface((Constants.BLOCK_WIDTH, Constants.BLOCK_HEIGHT))
-        self.surf.fill(color)
-
-    def fall(self):
-        self.y -= 1
-
-    def can_fall(self, blocks):
-        return self.y > 1 and (self.x, self.y - 1) not in [
-            (block.x, block.y) for block in blocks
-        ]
-
-    def move_right(self):
-        self.x += 1
-
-    def can_move_right(self, blocks):
-        return self.x < 10 and (self.x + 1, self.y) not in [
-            (block.x, block.y) for block in blocks
-        ]
-
-    def move_left(self):
-        self.x -= 1
-
-    def can_move_left(self, blocks):
-        return self.x > 1 and (self.x - 1, self.y) not in [
-            (block.x, block.y) for block in blocks
-        ]
-
-    def not_collided(self, blocks):
-        return (
-            self.x > 0
-            and self.x <= Constants.BOARD_WIDTH
-            and self.y > 0
-            and (
-                self.x,
-                self.y,
-            )
-            not in [(block.x, block.y) for block in blocks]
-        )
-
-    def draw(self, screen):
-        screen.blit(
-            self.surf,
-            (
-                (self.x - 1) * Constants.BLOCK_WIDTH,
-                (Constants.BOARD_HEIGHT - self.y) * Constants.BLOCK_HEIGHT,
-            ),
-        )

@@ -3,6 +3,7 @@ from constants import Constants
 from timer import Timer
 from collections import defaultdict
 from enum import Enum
+from block import Block
 from piece import Piece
 from piece_generator import PieceGenerator
 
@@ -50,6 +51,7 @@ class Game:
         self.phase = Phase.GENERATION
         self.piece_generator = PieceGenerator()
         self.piece = None
+        self.ghost_piece = None
         self.blocks = pygame.sprite.Group()
         self.running = True
         self.auto_repeat_left = False
@@ -169,12 +171,6 @@ class Game:
                     if keys_down[pygame.K_DOWN] or keys_up[pygame.K_DOWN]:
                         self.fall_timer.start(self.fall_speed)
 
-                    if keys_down[pygame.K_SPACE]:
-                        while self.piece.fall(self.blocks):
-                            pass
-                        self.fall_timer.stop()
-                        self.phase = Phase.PATTERN
-
                     if keys_down[pygame.K_LSHIFT] and not self.held_swapped:
                         if self.held_piece:
                             self.piece, self.held_piece = (
@@ -187,6 +183,24 @@ class Game:
                                 self.piece.type,
                             )
                         self.held_swapped = True
+
+                    if self.phase == Phase.FALLING:
+                        self.ghost_piece = Piece(
+                            self.piece.type,
+                            x=self.piece.x,
+                            y=self.piece.y,
+                            orientation=self.piece.orientation,
+                            style=Block.Style.GHOST,
+                        )
+                        while self.ghost_piece.fall(self.blocks):
+                            pass
+
+                    if keys_down[pygame.K_SPACE]:
+                        while self.piece.fall(self.blocks):
+                            pass
+                        self.fall_timer.stop()
+                        self.phase = Phase.PATTERN
+                        return
 
                     if falling and not self.piece.fall(self.blocks):
                         self.fall_timer.stop()
@@ -285,6 +299,8 @@ class Game:
 
         self.screen.fill(pygame.Color("black"))
         Game.draw_board(self.board)
+        if self.ghost_piece:
+            self.ghost_piece.draw(self.board)
         self.piece.draw(self.board)
         [block.draw(self.board) for block in self.blocks.sprites()]
         Game.draw_hold_queue(self.screen, self.held_piece)
