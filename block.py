@@ -12,13 +12,12 @@ class Block(pygame.sprite.Sprite):
         super(Block, self).__init__()
         self.x = x
         self.y = y
-        self.surf = pygame.Surface(
-            (Constants.BLOCK_WIDTH, Constants.BLOCK_HEIGHT), flags=pygame.SRCALPHA
-        )
+        self.surf = pygame.Surface((Constants.BLOCK_WIDTH, Constants.BLOCK_HEIGHT))
         if style == Block.Style.FILL:
             self.surf.fill(color)
-        else:
-            self.surf.fill((255, 255, 255, 128))
+        else:  # ghost
+            self.surf.fill((255, 255, 255))
+            self.surf.set_alpha(128)
 
     def fall(self):
         self.y -= 1

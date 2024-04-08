@@ -212,6 +212,7 @@ class Game:
                         self.phase = Phase.LOCK
 
                     if self.phase == Phase.LOCK:
+                        self.ghost_piece = None
                         # Movement or rotation can cause piece to continue falling
                         # if piece can fall, pause timer until piece lands on a surface
                         # if piece falls below lowest previously hit y coordinate, reset lockdown
@@ -385,7 +386,7 @@ class Game:
             (Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT),
             flags=pygame.SRCALPHA,
         )
-        pause_overlay.fill((0, 0, 0, 128))
+        pause_overlay.fill((255, 255, 255, 128))
         pause = big_font.render("Paused (P to resume)", True, (255, 255, 255))
         pause_overlay.blit(
             pause,
