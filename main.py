@@ -304,9 +304,9 @@ class Game:
             self.ghost_piece.draw(self.board)
         self.piece.draw(self.board)
         [block.draw(self.board) for block in self.blocks.sprites()]
-        Game.draw_hold_queue(self.screen, self.held_piece)
-
         self.screen.blit(self.board, (240, 0))
+        Game.draw_hold_queue(self.screen, self.held_piece)
+        Game.draw_next_queue(self.screen, self.piece_generator.peek())
 
         level = self.font.render(f"Level: {self.level}", True, (255, 255, 255))
         score = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
@@ -322,6 +322,31 @@ class Game:
 
         self.clock.tick(60)
         pygame.display.flip()
+
+    @staticmethod
+    def draw_next_queue(screen, next_piece_type):
+        next_surface = pygame.Surface((160, 160))
+        pygame.draw.rect(
+            next_surface,
+            (255, 255, 255),
+            (0, 0, 160, 160),
+            1,
+        )
+
+        if next_piece_type:
+            # position is based on 20 being top of board (and viewing 4x4 cut
+            # of top left corner of board).  For centering, need to use
+            # different x offset for I and O pieces
+            if next_piece_type.NAME == "I":
+                next_piece = Piece(next_piece_type, 2, 18.5)
+            elif next_piece_type.NAME == "O":
+                next_piece = Piece(next_piece_type, 2, 18)
+            else:
+                next_piece = Piece(next_piece_type, 2.5, 18)
+
+            next_piece.draw(next_surface)
+
+        screen.blit(next_surface, (680, 100))
 
     @staticmethod
     def draw_hold_queue(screen, hold_piece_type):

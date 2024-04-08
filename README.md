@@ -19,7 +19,6 @@ pipenv run python main.py
 ```
 
 ### TODO List:
-- Next Queue
 - CCW Rotation
 - Extended Lockdown
 - Back-to-Back, hard/soft drop scoring
