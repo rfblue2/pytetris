@@ -31,6 +31,11 @@ class PieceType(ABC):
         """
         pass
 
+    @property
+    @abstractmethod
+    def NAME(cls):
+        pass
+
     @abstractmethod
     def color(self):
         pass
@@ -48,6 +53,8 @@ class OPiece(PieceType):
         Orientation.WEST: [(0, 0)],
     }
 
+    NAME = "O"
+
     def color(self):
         return (255, 255, 0)
 
@@ -62,6 +69,8 @@ class TPiece(PieceType):
         Orientation.SOUTH: [(0, 0), (-1, 0), (0, 0), (0, -2), (1, -2)],
         Orientation.WEST: [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
     }
+
+    NAME = "T"
 
     def color(self):
         return (255, 0, 255)
@@ -88,6 +97,8 @@ class IPiece(PieceType):
         Orientation.WEST: [(0, 0), (1, 0), (-2, 0), (1, -2), (-2, 1)],
     }
 
+    NAME = "I"
+
     def color(self):
         return (0, 255, 255)
 
@@ -110,6 +121,8 @@ class LPiece(PieceType):
         Orientation.SOUTH: [(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
         Orientation.WEST: [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
     }
+
+    NAME = "L"
 
     def color(self):
         return (255, 165, 0)
@@ -134,6 +147,8 @@ class JPiece(PieceType):
         Orientation.WEST: [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
     }
 
+    NAME = "J"
+
     def color(self):
         return (0, 0, 255)
 
@@ -157,6 +172,8 @@ class SPiece(PieceType):
         Orientation.WEST: [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
     }
 
+    NAME = "S"
+
     def color(self):
         return (0, 255, 0)
 
@@ -179,6 +196,8 @@ class ZPiece(PieceType):
         Orientation.SOUTH: [(0, 0), (1, 0), (1, 1), (0, -2), (1, -2)],
         Orientation.WEST: [(0, 0), (-1, 0), (-1, -1), (0, 2), (-1, 2)],
     }
+
+    NAME = "Z"
 
     def color(self):
         return (255, 0, 0)

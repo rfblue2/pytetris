@@ -1,26 +1,10 @@
 import pygame
+from constants import Constants
 from timer import Timer
 from collections import defaultdict
 from enum import Enum
-from piece import Block
+from piece import Piece
 from piece_generator import PieceGenerator
-
-
-class Constants:
-    BOARD_WIDTH = 10
-    BOARD_HEIGHT = 20
-    SCREEN_WIDTH = BOARD_WIDTH * Block.BLOCK_WIDTH + 400
-    SCREEN_HEIGHT = BOARD_HEIGHT * Block.BLOCK_HEIGHT
-
-    MAX_LEVEL = 15
-
-    AUTO_REPEAT_DELAY_MS = 300
-    LOCKDOWN_DELAY_MS = 500
-
-    FALL_EVENT = pygame.USEREVENT + 1
-    LOCKDOWN_EVENT = pygame.USEREVENT + 2
-    LEFT_AUTO_REPEAT_EVENT = pygame.USEREVENT + 3
-    RIGHT_AUTO_REPEAT_EVENT = pygame.USEREVENT + 4
 
 
 class State(Enum):
@@ -52,8 +36,8 @@ class Game:
         )
         self.board = pygame.Surface(
             (
-                Constants.BOARD_WIDTH * Block.BLOCK_WIDTH,
-                Constants.BOARD_HEIGHT * Block.BLOCK_HEIGHT,
+                Constants.BOARD_WIDTH * Constants.BLOCK_WIDTH,
+                Constants.BOARD_HEIGHT * Constants.BLOCK_HEIGHT,
             )
         )
         self.font = pygame.font.SysFont(pygame.font.get_default_font(), 24)
@@ -70,6 +54,9 @@ class Game:
         self.running = True
         self.auto_repeat_left = False
         self.auto_repeat_right = False
+
+        self.held_piece = None
+        self.held_swapped = False
 
         # scoring, levels, statistics
         self.level = 1
@@ -146,6 +133,7 @@ class Game:
             match self.phase:
                 case Phase.GENERATION:
                     self.piece = self.piece_generator.next()
+                    self.held_swapped = False
                     # check top out conditions
                     if not self.piece.can_fall(self.blocks) or self.piece.is_blocked(
                         self.blocks
@@ -186,6 +174,19 @@ class Game:
                             pass
                         self.fall_timer.stop()
                         self.phase = Phase.PATTERN
+
+                    if keys_down[pygame.K_LSHIFT] and not self.held_swapped:
+                        if self.held_piece:
+                            self.piece, self.held_piece = (
+                                Piece(self.held_piece),
+                                self.piece.type,
+                            )
+                        else:
+                            self.piece, self.held_piece = (
+                                self.piece_generator.next(),
+                                self.piece.type,
+                            )
+                        self.held_swapped = True
 
                     if falling and not self.piece.fall(self.blocks):
                         self.fall_timer.stop()
@@ -286,8 +287,10 @@ class Game:
         Game.draw_board(self.board)
         self.piece.draw(self.board)
         [block.draw(self.board) for block in self.blocks.sprites()]
+        Game.draw_hold_queue(self.screen, self.held_piece)
 
-        self.screen.blit(self.board, (200, 0))
+        self.screen.blit(self.board, (240, 0))
+
         level = self.font.render(f"Level: {self.level}", True, (255, 255, 255))
         score = self.font.render(f"Score: {self.score}", True, (255, 255, 255))
         lines = self.font.render(f"Lines: {self.lines}", True, (255, 255, 255))
@@ -304,6 +307,31 @@ class Game:
         pygame.display.flip()
 
     @staticmethod
+    def draw_hold_queue(screen, hold_piece_type):
+        hold_surface = pygame.Surface((160, 160))
+        pygame.draw.rect(
+            hold_surface,
+            (255, 255, 255),
+            (0, 0, 160, 160),
+            1,
+        )
+
+        if hold_piece_type:
+            # position is based on 20 being top of board (and viewing 4x4 cut
+            # of top left corner of board).  For centering, need to use
+            # different x offset for I and O pieces
+            if hold_piece_type.NAME == "I":
+                hold_piece = Piece(hold_piece_type, 2, 18.5)
+            elif hold_piece_type.NAME == "O":
+                hold_piece = Piece(hold_piece_type, 2, 18)
+            else:
+                hold_piece = Piece(hold_piece_type, 2.5, 18)
+
+            hold_piece.draw(hold_surface)
+
+        screen.blit(hold_surface, (40, 600))
+
+    @staticmethod
     def draw_board(board):
         board.fill((0, 0, 0))
 
@@ -311,7 +339,12 @@ class Game:
         pygame.draw.rect(
             board,
             (255, 255, 255),
-            (0, 0, Constants.BOARD_WIDTH * Block.BLOCK_WIDTH, Constants.SCREEN_HEIGHT),
+            (
+                0,
+                0,
+                Constants.BOARD_WIDTH * Constants.BLOCK_WIDTH,
+                Constants.SCREEN_HEIGHT,
+            ),
             1,
         )
 
@@ -322,10 +355,10 @@ class Game:
                     board,
                     (100, 100, 100),
                     (
-                        x * Block.BLOCK_WIDTH,
-                        y * Block.BLOCK_HEIGHT,
-                        Block.BLOCK_WIDTH,
-                        Block.BLOCK_HEIGHT,
+                        x * Constants.BLOCK_WIDTH,
+                        y * Constants.BLOCK_HEIGHT,
+                        Constants.BLOCK_WIDTH,
+                        Constants.BLOCK_HEIGHT,
                     ),
                     1,
                 )

@@ -1,4 +1,5 @@
 import pygame
+from constants import Constants
 from piece_type import PieceType, Orientation
 
 
@@ -6,13 +7,13 @@ class Piece:
     START_X = 5
     START_Y = 21
 
-    def __init__(self, type: PieceType):
+    def __init__(self, type: PieceType, x=START_X, y=START_Y):
         """
         x,y block coordinates based on center of top left 3x3 square within 10x20 board
         Initial generation is at (5,21)
         """
-        self.x = Piece.START_X
-        self.y = Piece.START_Y
+        self.x = x
+        self.y = y
         self.type = type
         self.blocks = pygame.sprite.Group()
         self.orientation = Orientation.NORTH
@@ -83,14 +84,12 @@ class Piece:
 
 
 class Block(pygame.sprite.Sprite):
-    BLOCK_HEIGHT = 40
-    BLOCK_WIDTH = 40
 
     def __init__(self, x, y, color):
         super(Block, self).__init__()
         self.x = x
         self.y = y
-        self.surf = pygame.Surface((Block.BLOCK_WIDTH, Block.BLOCK_HEIGHT))
+        self.surf = pygame.Surface((Constants.BLOCK_WIDTH, Constants.BLOCK_HEIGHT))
         self.surf.fill(color)
 
     def fall(self):
@@ -120,7 +119,7 @@ class Block(pygame.sprite.Sprite):
     def not_collided(self, blocks):
         return (
             self.x > 0
-            and self.x <= 10
+            and self.x <= Constants.BOARD_WIDTH
             and self.y > 0
             and (
                 self.x,
@@ -133,7 +132,7 @@ class Block(pygame.sprite.Sprite):
         screen.blit(
             self.surf,
             (
-                (self.x - 1) * Block.BLOCK_WIDTH,
-                (20 - self.y) * Block.BLOCK_HEIGHT,
+                (self.x - 1) * Constants.BLOCK_WIDTH,
+                (Constants.BOARD_HEIGHT - self.y) * Constants.BLOCK_HEIGHT,
             ),
         )

@@ -19,7 +19,6 @@ pipenv run python main.py
 ```
 
 ### TODO List:
-- Hold
 - Next Queue
 - Ghost Piece
 - CCW Rotation
